@@ -1,0 +1,24 @@
+{
+    "name": "ryadnov/zenmoney-reminder-renewal",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ryadnov Andrey",
+            "email": "me@ryadnov.ru",
+            "homepage": "https://ryadnov.ru/"
+        }
+    ],
+    "require": {
+        "ramsey/uuid": "^3.7",
+        "ryadnov/zenmoney-php-api-library": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ryadnov\\ZenMoney\\Scripts\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
