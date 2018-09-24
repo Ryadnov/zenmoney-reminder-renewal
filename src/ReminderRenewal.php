@@ -143,6 +143,7 @@ class ReminderRenewal
 
         if ($date_end > $date_next) {
             $new_marker            = $last_marker;
+            $new_marker['state']   = "planned";
             $new_marker['id']      = Uuid::uuid4()->toString();
             $new_marker['changed'] = time();
             $new_marker['date']    = $date_next->format('Y-m-d');
