@@ -2,6 +2,7 @@
 
 namespace Ryadnov\ZenMoney\Scripts;
 
+use GuzzleHttp\Exception\ClientException;
 use Ramsey\Uuid\Uuid;
 use Ryadnov\ZenMoney\Api\V8\RequestDiff;
 
@@ -23,22 +24,31 @@ class ReminderRenewal
 
         $data = $request->execute([
             'serverTimestamp' => 0,
-            'forceFetch'      => ['reminderMarker', 'reminder'],
+            'forceFetch' => ['reminderMarker', 'reminder'],
         ]);
 
         $this->processData($data['reminder'], $data['reminderMarker']);
 
-        if (count($this->sync_data)) {
-            $request->execute(array_merge(
-                $this->sync_data,
-                [
-                    'serverTimestamp' => time(),
-                ]
-            ));
+        try {
+            if (count($this->sync_data)) {
+                $request->execute(array_merge(
+                    $this->sync_data,
+                    [
+                        'serverTimestamp' => time(),
+                    ]
+                ));
 
-            if (array_key_exists('reminderMarker', $this->sync_data)) {
-                echo "Added " . count($this->sync_data['reminderMarker']) . " markers \n";
+                if (array_key_exists('reminderMarker', $this->sync_data)) {
+                    echo "Added " . count($this->sync_data['reminderMarker']) . " markers \n";
+                }
             }
+        } catch (ClientException $e) {
+            $response = $e->getResponse();
+            $responseBodyAsString = $response->getBody()->getContents();
+
+            echo $responseBodyAsString;
+        } catch (\Throwable $e) {
+            var_dump($e->getMessage());
         }
     }
 
@@ -100,7 +110,30 @@ class ReminderRenewal
                 $date_end = (new \DateTime('now'))->add($date_interval);
             }
 
-            $this->tryAddNewMarker($item['last_marker'], $date_end, $reminder['interval'], $reminder['step'], $reminder['points']);
+            $lastMarker = [];
+            if (isset($item['last_marker'])) {
+                $lastMarker = $item['last_marker'];
+            } else {
+                $lastMarker = [
+                    'date' => $reminder['startDate'],
+                    'reminder' => $reminder['id'],
+
+                    'user' => $marker['user'],
+                    'incomeInstrument' => $marker['incomeInstrument'],
+                    'incomeAccount' => $marker['incomeAccount'],
+                    'income' => $marker['income'],
+                    'outcomeInstrument' => $marker['outcomeInstrument'],
+                    'outcomeAccount' => $marker['outcomeAccount'],
+                    'outcome' => $marker['outcome'],
+                    'tag' => $marker['tag'],
+                    'merchant' => $marker['merchant'],
+                    'payee' => $marker['payee'],
+                    'comment' => $marker['comment'],
+                    'notify' => $marker['notify'],
+                ];
+            }
+
+            $this->tryAddNewMarker($lastMarker, $date_end, $reminder['interval'], $reminder['step'], $reminder['points']);
         }
     }
 
@@ -142,11 +175,11 @@ class ReminderRenewal
         $date_next = (new \DateTime($last_marker['date']))->add($date_interval);
 
         if ($date_end > $date_next) {
-            $new_marker            = $last_marker;
-            $new_marker['state']   = "planned";
-            $new_marker['id']      = Uuid::uuid4()->toString();
+            $new_marker = $last_marker;
+            $new_marker['state'] = "planned";
+            $new_marker['id'] = Uuid::uuid4()->toString();
             $new_marker['changed'] = time();
-            $new_marker['date']    = $date_next->format('Y-m-d');
+            $new_marker['date'] = $date_next->format('Y-m-d');
 
             $this->addToSync('reminderMarker', $new_marker);
             $this->tryAddNewMarker($new_marker, $date_end, $interval, $step, $points);
